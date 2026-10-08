@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuth() &&
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+
+    // Usuarios: solo admin puede crear/editar
+    match /usuarios/{uid} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Lotes: solo admin puede crear/editar
+    match /lotes/{id} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Producciones: cualquier autenticado crea, solo admin edita/borra
+    match /producciones/{id} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+
+    // Pérdidas
+    match /perdidas/{id} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+
+    // Ventas
+    match /ventas/{id} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+  }
+}
