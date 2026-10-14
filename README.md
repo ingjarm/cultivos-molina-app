@@ -1,17 +1,35 @@
-# cultivos_molina
+# Cultivos Molina
 
-A new Flutter project.
+Aplicación móvil para la gestión y análisis de los datos para la toma de decisiones en la empresa cultivos molina.
 
-## Getting Started
+## Descripción 
 
-This project is a starting point for a Flutter application.
+Sistema móvil desarrollado con Flutter y Firebase que permite digitalizar y centralizar la información de producción, pérdidas y ventas de las variedades de lechuga Batavia, Romana y Crespa, facilitando la toma de decisiones basada en datos.
 
-A few resources to get you started if this is your first Flutter project:
+# Módulos:
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+* Dashboard: resumen de indicadores clave del mes en curso.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+* Producción: registro y seguimiento de cosechas por lote y variedad.
+
+* Pérdidas: registro, clasificación por causa y análisis de márgenes.
+
+* Ventas: registro de transacciones y seguimiento de ingresos.
+
+# Tecnologías:
+
+* Flutter 3.x / Dart 3.x.
+
+* Firebase Authentication.
+
+* Cloud Firestore.
+
+* Patrón de arquitectura BLoC.
+
+# Requisitos:
+
+* Flutter SDK 3.19 o superior.
+
+* Cuenta de Firebase con proyecto configurado.
+
+* Android 8.0 o superior / iOS 13 o superior.
