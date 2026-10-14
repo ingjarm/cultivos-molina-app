@@ -1,11 +1,11 @@
 {
-    "name": "cultivos_molina",
-    "short_name": "cultivos_molina",
+    "name": "Cultivos Molina",
+    "short_name": "C. Molina",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#1B3A26",
+    "theme_color": "#1B3A26",
+    "description": "Gestión de producción, pérdidas y ventas de Cultivos Molina",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
