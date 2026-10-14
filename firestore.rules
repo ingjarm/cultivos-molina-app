@@ -11,6 +11,25 @@ service cloud.firestore {
         get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
     }
 
+    // Operario activo: es quien registra y corrige datos
+    function isOperario() {
+      let perfil = get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+      return isAuth() && perfil.rol == 'operario' && perfil.activo == true;
+    }
+
+    // Registros de producción, pérdidas y ventas:
+    // - todos los autenticados pueden ver (el admin solo consulta)
+    // - solo un operario crea, y a su propio nombre
+    // - nadie edita: un error se corrige eliminando y registrando de nuevo
+    // - cada operario solo elimina lo que él registró
+    function puedeCrearRegistro() {
+      return isOperario() && request.resource.data.usuario_id == request.auth.uid;
+    }
+
+    function puedeEliminarRegistro() {
+      return isOperario() && resource.data.usuario_id == request.auth.uid;
+    }
+
     // Usuarios: solo admin puede crear/editar
     match /usuarios/{uid} {
       allow read: if isAuth();
@@ -23,25 +42,25 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Producciones: cualquier autenticado crea, solo admin edita/borra
+    // Producciones
     match /producciones/{id} {
       allow read: if isAuth();
-      allow create: if isAuth();
-      allow update, delete: if isAdmin();
+      allow create: if puedeCrearRegistro();
+      allow delete: if puedeEliminarRegistro();
     }
 
     // Pérdidas
     match /perdidas/{id} {
       allow read: if isAuth();
-      allow create: if isAuth();
-      allow update, delete: if isAdmin();
+      allow create: if puedeCrearRegistro();
+      allow delete: if puedeEliminarRegistro();
     }
 
     // Ventas
     match /ventas/{id} {
       allow read: if isAuth();
-      allow create: if isAuth();
-      allow update, delete: if isAdmin();
+      allow create: if puedeCrearRegistro();
+      allow delete: if puedeEliminarRegistro();
     }
   }
 }

@@ -4,9 +4,11 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../services/firestore_service.dart';
+import '../../models/models.dart';
 import '../produccion/produccion_screen.dart';
 import '../perdidas/perdidas_screen.dart';
 import '../ventas/ventas_screen.dart';
+import '../meses/meses_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -15,7 +17,6 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _tab = 0;
-  final _fmt = NumberFormat('#,##0', 'es_CO');
   final _fmtM = NumberFormat('#,##0.0', 'es_CO');
 
   static const _green  = Color(0xFF1B3A26);
@@ -32,6 +33,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       const ProduccionScreen(),
       const PerdidasScreen(),
       const VentasScreen(),
+      const MesesScreen(),
     ];
 
     return Scaffold(
@@ -46,18 +48,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           NavigationDestination(icon: Icon(Icons.eco_outlined), selectedIcon: Icon(Icons.eco_rounded), label: 'Producción'),
           NavigationDestination(icon: Icon(Icons.trending_down_outlined), selectedIcon: Icon(Icons.trending_down_rounded), label: 'Pérdidas'),
           NavigationDestination(icon: Icon(Icons.attach_money_outlined), selectedIcon: Icon(Icons.attach_money_rounded), label: 'Ventas'),
+          NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month_rounded), label: 'Meses'),
         ],
       ),
     );
   }
 
-  Widget _buildHome(usuario, DateTime now) {
+  Widget _buildHome(UsuarioModel usuario, DateTime now) {
     return FutureBuilder<Map<String, dynamic>>(
       future: context.read<FirestoreService>().getResumenMes(now.year, now.month),
       builder: (context, snap) {
         final data = snap.data ?? {};
         final prodKg    = (data['produccion_kg'] ?? 0.0) as double;
-        final perdKg    = (data['perdida_kg'] ?? 0.0) as double;
         final pctPerd   = (data['pct_perdida'] ?? 0.0) as double;
         final vendKg    = (data['vendido_kg'] ?? 0.0) as double;
         final ingresos  = (data['ingresos'] ?? 0.0) as double;
@@ -66,37 +68,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return CustomScrollView(
           slivers: [
             SliverAppBar(
-              expandedHeight: 220,
               pinned: true,
               backgroundColor: _green,
-              flexibleSpace: FlexibleSpaceBar(
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF1B3A26), Color(0xFF2D5A3D)],
-                    ),
+              title: const Text('Cultivos Molina',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                  tooltip: 'Cerrar sesión',
+                  onPressed: () => context.read<AuthBloc>().add(AuthLogoutRequested()),
+                ),
+              ],
+            ),
+
+            // Cabecera con el resumen: su altura se ajusta al contenido
+            SliverToBoxAdapter(
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF1B3A26), Color(0xFF2D5A3D)],
                   ),
-                  padding: const EdgeInsets.fromLTRB(20, 60, 20, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text('Bienvenido', style: TextStyle(color: Colors.white.withOpacity(.6), fontSize: 13)),
-                      const Text('Cultivos Molina',
-                        style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
-                      ),
-                      Text(
-                        DateFormat('MMMM yyyy · La Cumbre, Valle del Cauca', 'es_CO').format(DateTime.now()),
-                        style: TextStyle(color: Colors.white.withOpacity(.5), fontSize: 12),
-                      ),
-                      const SizedBox(height: 14),
-                      Text('RESUMEN DEL MES',
-                        style: TextStyle(color: Colors.white.withOpacity(.5), fontSize: 10, letterSpacing: .1),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(children: [
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Bienvenido, ${usuario.nombre}',
+                      style: TextStyle(color: Colors.white.withOpacity(.75), fontSize: 14),
+                    ),
+                    const SizedBox(height: 2),
+                    // El texto fijo va fuera del patrón: DateFormat interpreta sus letras
+                    Text(
+                      '${DateFormat('MMMM yyyy', 'es_CO').format(now)} · La Cumbre, Valle del Cauca',
+                      style: TextStyle(color: Colors.white.withOpacity(.5), fontSize: 12),
+                    ),
+                    const SizedBox(height: 14),
+                    Text('RESUMEN DEL MES',
+                      style: TextStyle(color: Colors.white.withOpacity(.5), fontSize: 10, letterSpacing: .1),
+                    ),
+                    const SizedBox(height: 8),
+                    IntrinsicHeight(
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                         _kpiCard('🥬 Producción', loading ? '...' : '${_fmtM.format(prodKg/1000)} t', _green2, true),
                         const SizedBox(width: 8),
                         _kpiCard('💰 Ingresos', loading ? '...' : '\$${_fmtM.format(ingresos/1000000)}M', null, false),
@@ -106,21 +121,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         const SizedBox(width: 8),
                         _kpiCard('🛒 Vendido', loading ? '...' : '${_fmtM.format(vendKg/1000)} t', null, false),
                       ]),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.logout_rounded, color: Colors.white),
-                  onPressed: () => context.read<AuthBloc>().add(AuthLogoutRequested()),
-                ),
-              ],
             ),
 
             SliverPadding(
               padding: const EdgeInsets.all(16),
-              sliver: SliverList(children: [
+              sliver: SliverList.list(children: [
                 if (pctPerd > 10)
                   Container(
                     margin: const EdgeInsets.only(bottom: 16),

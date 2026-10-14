@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../services/firestore_service.dart';
 import '../../models/models.dart';
 import '../../blocs/auth/auth_bloc.dart';
+import '../../widgets/eliminar_registro.dart';
 
 class VentasScreen extends StatefulWidget {
   const VentasScreen({super.key});
@@ -24,6 +25,7 @@ class _VentasScreenState extends State<VentasScreen> {
     final now = DateTime.now();
     final desde = DateTime(now.year, now.month, 1);
     final hasta = DateTime(now.year, now.month + 1, 0, 23, 59);
+    final usuario = (context.read<AuthBloc>().state as AuthAuthenticated).usuario;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F3EC),
@@ -42,7 +44,7 @@ class _VentasScreenState extends State<VentasScreen> {
             semanas[w] = (semanas[w] ?? 0) + v.total;
           }
 
-          final esAdmin = (context.read<AuthBloc>().state as AuthAuthenticated).usuario.esAdmin;
+          final esAdmin = usuario.esAdmin;
 
           return CustomScrollView(
             slivers: [
@@ -51,16 +53,18 @@ class _VentasScreenState extends State<VentasScreen> {
                 title: const Text('💰 Ventas', style: TextStyle(color: Color(0xFFFDF5DC))),
                 pinned: true,
                 actions: [
-                  IconButton(
-                    icon: const Icon(Icons.add, color: Colors.white),
-                    onPressed: () => _showFormDialog(context),
-                  ),
+                  // El admin solo consulta: no registra
+                  if (!esAdmin)
+                    IconButton(
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      onPressed: () => _showFormDialog(context),
+                    ),
                 ],
               ),
 
               SliverPadding(
                 padding: const EdgeInsets.all(16),
-                sliver: SliverList(children: [
+                sliver: SliverList.list(children: [
 
                   // KPIs
                   Row(children: [
@@ -125,22 +129,31 @@ class _VentasScreenState extends State<VentasScreen> {
                   // Lista de ventas
                   _sectionTitle('ÚLTIMAS VENTAS'),
                   if (lista.isEmpty)
-                    const Center(
+                    Center(
                       child: Padding(
-                        padding: EdgeInsets.all(40),
-                        child: Text('Sin ventas este mes.\nToca + para registrar.', textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey)),
+                        padding: const EdgeInsets.all(40),
+                        child: Text(esAdmin ? 'Sin ventas este mes.' : 'Sin ventas este mes.\nToca + para registrar.', textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.grey)),
                       ),
                     )
                   else
-                    ...lista.map((v) => _VentaCard(v: v, fmtM: _fmtM, fmtKg: _fmtKg, esAdmin: esAdmin)),
+                    ...lista.map((v) => _VentaCard(
+                      v: v,
+                      fmtM: _fmtM,
+                      fmtKg: _fmtKg,
+                      esAdmin: esAdmin,
+                      // Cada operario solo puede borrar lo que él registró
+                      onEliminar: !esAdmin && v.usuarioId == usuario.uid
+                          ? () => context.read<FirestoreService>().eliminarVenta(v.id)
+                          : null,
+                    )),
                 ]),
               ),
             ],
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: usuario.esAdmin ? null : FloatingActionButton.extended(
         backgroundColor: _amber,
         foregroundColor: _dark,
         icon: const Icon(Icons.add),
@@ -194,7 +207,8 @@ class _VentaCard extends StatelessWidget {
   final VentaModel v;
   final NumberFormat fmtM, fmtKg;
   final bool esAdmin;
-  const _VentaCard({required this.v, required this.fmtM, required this.fmtKg, required this.esAdmin});
+  final Future<void> Function()? onEliminar;
+  const _VentaCard({required this.v, required this.fmtM, required this.fmtKg, required this.esAdmin, this.onEliminar});
 
   @override
   Widget build(BuildContext context) {
@@ -217,9 +231,17 @@ class _VentaCard extends StatelessWidget {
           Text(v.cliente, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
           Text('${DateFormat('dd MMM', 'es_CO').format(v.fecha)} · ${fmtKg.format(v.cantidadKg)} kg',
             style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          if (v.usuarioNombre.isNotEmpty)
+            Text('Registró: ${v.usuarioNombre}',
+              style: const TextStyle(color: Colors.grey, fontSize: 11)),
         ])),
         Text(esAdmin ? fmtM.format(v.total) : '---',
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF2D5A3D))),
+        if (onEliminar != null)
+          EliminarRegistroButton(
+            descripcion: '${v.cliente} · ${fmtKg.format(v.cantidadKg)} kg · ${DateFormat('dd MMM', 'es_CO').format(v.fecha)}',
+            onEliminar: onEliminar!,
+          ),
       ]),
     );
   }
@@ -269,6 +291,7 @@ class _VentaFormState extends State<_VentaForm> {
     final venta = VentaModel(
       id: '',
       usuarioId: usuario.uid,
+      usuarioNombre: usuario.nombre,
       variedad: _variedad,
       cliente: _clienteCtrl.text.trim(),
       cantidadKg: double.parse(_cantCtrl.text.replaceAll(',', '.')),

@@ -1,6 +1,6 @@
-import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:firebase_auth/firebase_auth.dart' show User;
 import '../../services/auth_service.dart';
 import '../../models/models.dart';
 
@@ -36,7 +36,6 @@ class AuthError extends AuthState {
 // ─── BLOC ─────────────────────────────────────────────────────
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthService authService;
-  StreamSubscription? _authSub;
 
   AuthBloc({required this.authService}) : super(AuthLoading()) {
     on<AuthStarted>(_onStarted);
@@ -44,31 +43,35 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLogoutRequested>(_onLogout);
   }
 
-  void _onStarted(AuthStarted event, Emitter<AuthState> emit) {
-    _authSub?.cancel();
-    _authSub = authService.authStateChanges.listen((user) async {
-      if (user != null) {
-        final usuario = await authService.getUsuario(user.uid);
-        if (usuario != null && usuario.activo) {
-          emit(AuthAuthenticated(usuario));
-        } else {
-          await authService.signOut();
-          emit(AuthUnauthenticated());
-        }
-      } else {
-        emit(AuthUnauthenticated());
-      }
-    });
+  // Escucha la sesión de Firebase mientras el bloc esté vivo
+  Future<void> _onStarted(AuthStarted event, Emitter<AuthState> emit) {
+    return emit.forEach<AuthState>(
+      authService.authStateChanges.asyncMap(_resolverUsuario),
+      onData: (state) => state,
+      onError: (_, __) => AuthUnauthenticated(),
+    );
+  }
+
+  Future<AuthState> _resolverUsuario(User? user) async {
+    if (user == null) return AuthUnauthenticated();
+    final usuario = await authService.getUsuario(user.uid);
+    if (usuario != null && usuario.activo) return AuthAuthenticated(usuario);
+    await authService.signOut();
+    return AuthUnauthenticated();
   }
 
   Future<void> _onLogin(AuthLoginRequested event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
       final usuario = await authService.signIn(event.email, event.password);
-      if (usuario != null) {
-        emit(AuthAuthenticated(usuario));
+      if (usuario == null) {
+        await authService.signOut();
+        emit(AuthError('Usuario no registrado en el sistema'));
+      } else if (!usuario.activo) {
+        await authService.signOut();
+        emit(AuthError('Cuenta deshabilitada'));
       } else {
-        emit(AuthError('Usuario no encontrado'));
+        emit(AuthAuthenticated(usuario));
       }
     } on Exception catch (e) {
       emit(AuthError(_mapError(e.toString())));
@@ -81,17 +84,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   String _mapError(String e) {
+    if (e.contains('invalid-credential')) return 'Correo o contraseña incorrectos';
     if (e.contains('user-not-found'))    return 'Correo no registrado';
     if (e.contains('wrong-password'))    return 'Contraseña incorrecta';
     if (e.contains('invalid-email'))     return 'Correo inválido';
     if (e.contains('user-disabled'))     return 'Cuenta deshabilitada';
     if (e.contains('too-many-requests')) return 'Demasiados intentos. Espera un momento';
     return 'Error al iniciar sesión. Intenta de nuevo';
-  }
-
-  @override
-  Future<void> close() {
-    _authSub?.cancel();
-    return super.close();
   }
 }

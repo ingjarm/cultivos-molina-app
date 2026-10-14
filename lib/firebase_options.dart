@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -64,5 +61,15 @@ class DefaultFirebaseOptions {
     projectId: 'cultivos-molina',
     storageBucket: 'cultivos-molina.firebasestorage.app',
     iosBundleId: 'com.cultivosmolina.app',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyABCKElBnQ4v6CYQWV7LxjAdkGzc0V9Ndc',
+    appId: '1:661568605437:web:255302cf7bad4491f30294',
+    messagingSenderId: '661568605437',
+    projectId: 'cultivos-molina',
+    authDomain: 'cultivos-molina.firebaseapp.com',
+    storageBucket: 'cultivos-molina.firebasestorage.app',
+    measurementId: 'G-V8GXC3CJE8',
   );
 }

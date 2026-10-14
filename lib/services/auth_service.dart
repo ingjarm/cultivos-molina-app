@@ -9,10 +9,18 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
 
-  // Login
+  // Dominio que se agrega cuando se inicia sesión solo con nombre de usuario
+  static const dominioUsuarios = 'cultivosmolina.com';
+
+  static String normalizarEmail(String usuarioOEmail) {
+    final v = usuarioOEmail.trim().toLowerCase();
+    return v.contains('@') ? v : '$v@$dominioUsuarios';
+  }
+
+  // Login (acepta "usuario1" o "usuario1@cultivosmolina.com")
   Future<UsuarioModel?> signIn(String email, String password) async {
     final cred = await _auth.signInWithEmailAndPassword(
-      email: email.trim(),
+      email: normalizarEmail(email),
       password: password.trim(),
     );
     if (cred.user == null) return null;

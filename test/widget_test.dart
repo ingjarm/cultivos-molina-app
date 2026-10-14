@@ -1,30 +1,48 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:cultivos_molina/main.dart';
+import 'package:cultivos_molina/models/models.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Variedad', () {
+    test('fromString reconoce cada variedad', () {
+      for (final v in Variedad.values) {
+        expect(VariedadExt.fromString(v.name), v);
+      }
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('fromString usa batavia por defecto', () {
+      expect(VariedadExt.fromString('desconocida'), Variedad.batavia);
+    });
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  group('CausaPerdida', () {
+    test('fromString usa manipulacion por defecto', () {
+      expect(CausaExt.fromString('otra'), CausaPerdida.manipulacion);
+    });
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  group('LoteModel', () {
+    test('dos instancias con el mismo id son iguales', () {
+      const a = LoteModel(id: 'l1', nombre: 'Lote 1', areaM2: 100, activo: true);
+      const b = LoteModel(id: 'l1', nombre: 'Lote 1 editado', areaM2: 200, activo: true);
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
+    });
+  });
+
+  group('VentaModel', () {
+    test('toMap calcula el total como cantidad x precio', () {
+      final venta = VentaModel(
+        id: '',
+        usuarioId: 'u1',
+        variedad: Variedad.romana,
+        cliente: 'Cliente',
+        cantidadKg: 10,
+        precioKg: 2500,
+        total: 0,
+        fecha: DateTime(2026, 1, 1),
+      );
+      expect(venta.toMap()['total'], 25000);
+    });
   });
 }

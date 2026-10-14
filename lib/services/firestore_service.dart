@@ -78,6 +78,39 @@ class FirestoreService {
     await _db.collection('ventas').doc(id).delete();
   }
 
+  // ─── ESTADO POR MES (todo un año) ─────────────────────────
+  // Devuelve 12 resúmenes (enero..diciembre) con 3 consultas en vez de 36
+  Future<List<ResumenMes>> getResumenAnual(int year) async {
+    final desde = Timestamp.fromDate(DateTime(year, 1, 1));
+    final hasta = Timestamp.fromDate(DateTime(year + 1, 1, 1));
+
+    Future<QuerySnapshot<Map<String, dynamic>>> delAnio(String col) => _db
+        .collection(col)
+        .where('fecha', isGreaterThanOrEqualTo: desde)
+        .where('fecha', isLessThan: hasta)
+        .get();
+
+    final res = await Future.wait([delAnio('producciones'), delAnio('perdidas'), delAnio('ventas')]);
+    final meses = List.generate(12, (i) => ResumenMes(year: year, month: i + 1));
+
+    int mesDe(Map<String, dynamic> d) => (d['fecha'] as Timestamp).toDate().month - 1;
+    double kg(Map<String, dynamic> d) => (d['cantidad_kg'] ?? 0).toDouble();
+
+    for (final doc in res[0].docs) {
+      meses[mesDe(doc.data())].produccionKg += kg(doc.data());
+    }
+    for (final doc in res[1].docs) {
+      meses[mesDe(doc.data())].perdidaKg += kg(doc.data());
+    }
+    for (final doc in res[2].docs) {
+      final m = meses[mesDe(doc.data())];
+      m.vendidoKg += kg(doc.data());
+      m.ingresos += (doc.data()['total'] ?? 0).toDouble();
+      m.numVentas++;
+    }
+    return meses;
+  }
+
   // ─── ESTADÍSTICAS DEL MES ─────────────────────────────────
   Future<Map<String, dynamic>> getResumenMes(int year, int month) async {
     final desde = DateTime(year, month, 1);

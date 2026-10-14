@@ -33,6 +33,47 @@ extension CausaExt on CausaPerdida {
 }
 
 // ─────────────────────────────────────────────────────────────
+// RESUMEN MENSUAL (para el estado por mes)
+// ─────────────────────────────────────────────────────────────
+enum EstadoMes { sinDatos, bueno, atencion, critico }
+
+extension EstadoMesExt on EstadoMes {
+  String get label {
+    switch (this) {
+      case EstadoMes.sinDatos: return 'Sin datos';
+      case EstadoMes.bueno:    return 'Bueno';
+      case EstadoMes.atencion: return 'Atención';
+      case EstadoMes.critico:  return 'Crítico';
+    }
+  }
+}
+
+class ResumenMes {
+  final int year;
+  final int month;
+  double produccionKg = 0;
+  double perdidaKg = 0;
+  double vendidoKg = 0;
+  double ingresos = 0;
+  int numVentas = 0;
+
+  ResumenMes({required this.year, required this.month});
+
+  double get pctPerdida => produccionKg > 0 ? (perdidaKg / produccionKg) * 100 : 0;
+
+  bool get tieneDatos => produccionKg > 0 || perdidaKg > 0 || vendidoKg > 0;
+
+  // Mismo umbral que la alerta del inicio: más de 10% de pérdida es crítico
+  EstadoMes get estado {
+    if (!tieneDatos) return EstadoMes.sinDatos;
+    if (produccionKg == 0 && perdidaKg > 0) return EstadoMes.critico;
+    if (pctPerdida > 10) return EstadoMes.critico;
+    if (pctPerdida > 5) return EstadoMes.atencion;
+    return EstadoMes.bueno;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 // USUARIO
 // ─────────────────────────────────────────────────────────────
 class UsuarioModel {
@@ -107,6 +148,13 @@ class LoteModel {
     'activo': activo,
     'creado_en': Timestamp.now(),
   };
+
+  // Igualdad por id: el Dropdown recibe instancias nuevas en cada snapshot
+  @override
+  bool operator ==(Object other) => other is LoteModel && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -117,6 +165,7 @@ class ProduccionModel {
   final String loteId;
   final String loteNombre;
   final String usuarioId;
+  final String usuarioNombre;
   final Variedad variedad;
   final double cantidadKg;
   final DateTime fecha;
@@ -130,6 +179,7 @@ class ProduccionModel {
     required this.loteId,
     this.loteNombre = '',
     required this.usuarioId,
+    this.usuarioNombre = '',
     required this.variedad,
     required this.cantidadKg,
     required this.fecha,
@@ -146,6 +196,7 @@ class ProduccionModel {
       loteId: d['lote_id'] ?? '',
       loteNombre: d['lote_nombre'] ?? '',
       usuarioId: d['usuario_id'] ?? '',
+      usuarioNombre: d['usuario_nombre'] ?? '',
       variedad: VariedadExt.fromString(d['variedad'] ?? 'batavia'),
       cantidadKg: (d['cantidad_kg'] ?? 0).toDouble(),
       fecha: (d['fecha'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -160,6 +211,7 @@ class ProduccionModel {
     'lote_id': loteId,
     'lote_nombre': loteNombre,
     'usuario_id': usuarioId,
+    'usuario_nombre': usuarioNombre,
     'variedad': variedad.name,
     'cantidad_kg': cantidadKg,
     'fecha': Timestamp.fromDate(fecha),
@@ -178,6 +230,7 @@ class PerdidaModel {
   final String loteId;
   final String loteNombre;
   final String usuarioId;
+  final String usuarioNombre;
   final Variedad variedad;
   final double cantidadKg;
   final CausaPerdida causa;
@@ -190,6 +243,7 @@ class PerdidaModel {
     required this.loteId,
     this.loteNombre = '',
     required this.usuarioId,
+    this.usuarioNombre = '',
     required this.variedad,
     required this.cantidadKg,
     required this.causa,
@@ -205,6 +259,7 @@ class PerdidaModel {
       loteId: d['lote_id'] ?? '',
       loteNombre: d['lote_nombre'] ?? '',
       usuarioId: d['usuario_id'] ?? '',
+      usuarioNombre: d['usuario_nombre'] ?? '',
       variedad: VariedadExt.fromString(d['variedad'] ?? 'batavia'),
       cantidadKg: (d['cantidad_kg'] ?? 0).toDouble(),
       causa: CausaExt.fromString(d['causa'] ?? 'manipulacion'),
@@ -218,6 +273,7 @@ class PerdidaModel {
     'lote_id': loteId,
     'lote_nombre': loteNombre,
     'usuario_id': usuarioId,
+    'usuario_nombre': usuarioNombre,
     'variedad': variedad.name,
     'cantidad_kg': cantidadKg,
     'causa': causa.name,
@@ -234,6 +290,7 @@ class PerdidaModel {
 class VentaModel {
   final String id;
   final String usuarioId;
+  final String usuarioNombre;
   final Variedad variedad;
   final String cliente;
   final double cantidadKg;
@@ -245,6 +302,7 @@ class VentaModel {
   const VentaModel({
     required this.id,
     required this.usuarioId,
+    this.usuarioNombre = '',
     required this.variedad,
     required this.cliente,
     required this.cantidadKg,
@@ -259,6 +317,7 @@ class VentaModel {
     return VentaModel(
       id: doc.id,
       usuarioId: d['usuario_id'] ?? '',
+      usuarioNombre: d['usuario_nombre'] ?? '',
       variedad: VariedadExt.fromString(d['variedad'] ?? 'batavia'),
       cliente: d['cliente'] ?? '',
       cantidadKg: (d['cantidad_kg'] ?? 0).toDouble(),
@@ -271,6 +330,7 @@ class VentaModel {
 
   Map<String, dynamic> toMap() => {
     'usuario_id': usuarioId,
+    'usuario_nombre': usuarioNombre,
     'variedad': variedad.name,
     'cliente': cliente,
     'cantidad_kg': cantidadKg,

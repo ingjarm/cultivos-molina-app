@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../services/firestore_service.dart';
 import '../../models/models.dart';
 import '../../blocs/auth/auth_bloc.dart';
+import '../../widgets/eliminar_registro.dart';
 
 class ProduccionScreen extends StatefulWidget {
   const ProduccionScreen({super.key});
@@ -17,6 +18,8 @@ class _ProduccionScreenState extends State<ProduccionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final usuario = (context.read<AuthBloc>().state as AuthAuthenticated).usuario;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5F2),
       body: CustomScrollView(
@@ -26,10 +29,12 @@ class _ProduccionScreenState extends State<ProduccionScreen> {
             title: const Text('Producción', style: TextStyle(color: Colors.white)),
             pinned: true,
             actions: [
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-                onPressed: () => _showFormDialog(context),
-              ),
+              // El admin solo consulta: no registra
+              if (!usuario.esAdmin)
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline, color: Colors.white),
+                  onPressed: () => _showFormDialog(context),
+                ),
             ],
           ),
           SliverToBoxAdapter(
@@ -78,15 +83,22 @@ class _ProduccionScreenState extends State<ProduccionScreen> {
                       const SizedBox(height: 10),
 
                       if (lista.isEmpty)
-                        const Center(
+                        Center(
                           child: Padding(
-                            padding: EdgeInsets.all(40),
-                            child: Text('Sin registros este mes.\nToca + para agregar.', textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey)),
+                            padding: const EdgeInsets.all(40),
+                            child: Text(usuario.esAdmin ? 'Sin registros este mes.' : 'Sin registros este mes.\nToca + para agregar.', textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.grey)),
                           ),
                         )
                       else
-                        ...lista.map((p) => _ProduccionCard(p: p, fmt: _fmt)),
+                        ...lista.map((p) => _ProduccionCard(
+                          p: p,
+                          fmt: _fmt,
+                          // Cada operario solo puede borrar lo que él registró
+                          onEliminar: !usuario.esAdmin && p.usuarioId == usuario.uid
+                              ? () => context.read<FirestoreService>().eliminarProduccion(p.id)
+                              : null,
+                        )),
                     ],
                   ),
                 );
@@ -95,7 +107,7 @@ class _ProduccionScreenState extends State<ProduccionScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: usuario.esAdmin ? null : FloatingActionButton.extended(
         backgroundColor: _green2,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
@@ -125,7 +137,8 @@ class _ProduccionScreenState extends State<ProduccionScreen> {
 class _ProduccionCard extends StatelessWidget {
   final ProduccionModel p;
   final NumberFormat fmt;
-  const _ProduccionCard({required this.p, required this.fmt});
+  final Future<void> Function()? onEliminar;
+  const _ProduccionCard({required this.p, required this.fmt, this.onEliminar});
 
   @override
   Widget build(BuildContext context) {
@@ -151,6 +164,9 @@ class _ProduccionCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(DateFormat('dd MMM yyyy', 'es_CO').format(p.fecha),
             style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          if (p.usuarioNombre.isNotEmpty)
+            Text('Registró: ${p.usuarioNombre}',
+              style: const TextStyle(color: Colors.grey, fontSize: 11)),
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text('${fmt.format(p.cantidadKg)} kg',
@@ -158,6 +174,11 @@ class _ProduccionCard extends StatelessWidget {
           if (!p.sincronizado)
             const Icon(Icons.cloud_off, size: 14, color: Colors.orange),
         ]),
+        if (onEliminar != null)
+          EliminarRegistroButton(
+            descripcion: '${p.loteNombre} — ${p.variedadLabel} · ${fmt.format(p.cantidadKg)} kg',
+            onEliminar: onEliminar!,
+          ),
       ]),
     );
   }
@@ -214,6 +235,7 @@ class _ProduccionFormState extends State<_ProduccionForm> {
       loteId: _lote!.id,
       loteNombre: _lote!.nombre,
       usuarioId: usuario.uid,
+      usuarioNombre: usuario.nombre,
       variedad: _variedad,
       cantidadKg: double.parse(_cantCtrl.text.replaceAll(',', '.')),
       fecha: _fecha,
@@ -311,7 +333,7 @@ class _ProduccionFormState extends State<_ProduccionForm> {
                   ),
                   items: lotes.map((l) => DropdownMenuItem(
                     value: l,
-                    child: Text('${l.nombre} — ${l.areaM2.toStringAsFixed(1)} Ha'),
+                    child: Text('${l.nombre} — ${NumberFormat('#,##0', 'es_CO').format(l.areaM2)} m²'),
                   )).toList(),
                   onChanged: (l) => setState(() => _lote = l),
                 );

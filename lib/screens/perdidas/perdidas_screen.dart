@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../services/firestore_service.dart';
 import '../../models/models.dart';
 import '../../blocs/auth/auth_bloc.dart';
+import '../../widgets/eliminar_registro.dart';
 
 class PerdidasScreen extends StatefulWidget {
   const PerdidasScreen({super.key});
@@ -19,6 +20,7 @@ class _PerdidasScreenState extends State<PerdidasScreen> {
     final now = DateTime.now();
     final desde = DateTime(now.year, now.month, 1);
     final hasta = DateTime(now.year, now.month + 1, 0, 23, 59);
+    final usuario = (context.read<AuthBloc>().state as AuthAuthenticated).usuario;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F1F1),
@@ -50,16 +52,18 @@ class _PerdidasScreenState extends State<PerdidasScreen> {
                     title: const Text('Análisis de Pérdidas', style: TextStyle(color: Colors.white)),
                     pinned: true,
                     actions: [
-                      IconButton(
-                        icon: const Icon(Icons.add, color: Colors.white),
-                        onPressed: () => _showFormDialog(context),
-                      ),
+                      // El admin solo consulta: no registra
+                      if (!usuario.esAdmin)
+                        IconButton(
+                          icon: const Icon(Icons.add, color: Colors.white),
+                          onPressed: () => _showFormDialog(context),
+                        ),
                     ],
                   ),
 
                   SliverPadding(
                     padding: const EdgeInsets.all(16),
-                    sliver: SliverList(children: [
+                    sliver: SliverList.list(children: [
 
                       // ALERTA
                       if (alerta)
@@ -172,9 +176,22 @@ class _PerdidasScreenState extends State<PerdidasScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // ÚLTIMAS PÉRDIDAS
-                      _cardTitle('Últimos registros'),
-                      ...perdList.take(5).map((p) => _PerdidaCard(p: p, fmt: _fmt)),
+                      // REGISTROS DEL MES (todos, para poder corregir cualquiera)
+                      _cardTitle('Registros del mes'),
+                      if (perdList.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Center(child: Text('Sin pérdidas registradas este mes.',
+                            style: TextStyle(color: Colors.grey))),
+                        ),
+                      ...perdList.map((p) => _PerdidaCard(
+                        p: p,
+                        fmt: _fmt,
+                        // Cada operario solo puede borrar lo que él registró
+                        onEliminar: !usuario.esAdmin && p.usuarioId == usuario.uid
+                            ? () => context.read<FirestoreService>().eliminarPerdida(p.id)
+                            : null,
+                      )),
                     ]),
                   ),
                 ],
@@ -183,7 +200,7 @@ class _PerdidasScreenState extends State<PerdidasScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: usuario.esAdmin ? null : FloatingActionButton.extended(
         backgroundColor: const Color(0xFFB22222),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
@@ -267,7 +284,8 @@ class _PerdidasScreenState extends State<PerdidasScreen> {
 class _PerdidaCard extends StatelessWidget {
   final PerdidaModel p;
   final NumberFormat fmt;
-  const _PerdidaCard({required this.p, required this.fmt});
+  final Future<void> Function()? onEliminar;
+  const _PerdidaCard({required this.p, required this.fmt, this.onEliminar});
 
   @override
   Widget build(BuildContext context) {
@@ -289,10 +307,19 @@ class _PerdidaCard extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('${p.loteNombre} — ${p.variedad.label}',
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-          Text(p.causa.label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          Text('${p.causa.label} · ${DateFormat('dd MMM', 'es_CO').format(p.fecha)}',
+            style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          if (p.usuarioNombre.isNotEmpty)
+            Text('Registró: ${p.usuarioNombre}',
+              style: const TextStyle(color: Colors.grey, fontSize: 11)),
         ])),
         Text('${fmt.format(p.cantidadKg)} kg',
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFFB22222))),
+        if (onEliminar != null)
+          EliminarRegistroButton(
+            descripcion: '${p.loteNombre} — ${p.causa.label} · ${fmt.format(p.cantidadKg)} kg',
+            onEliminar: onEliminar!,
+          ),
       ]),
     );
   }
@@ -336,6 +363,7 @@ class _PerdidaFormState extends State<_PerdidaForm> {
       loteId: _lote!.id,
       loteNombre: _lote!.nombre,
       usuarioId: usuario.uid,
+      usuarioNombre: usuario.nombre,
       variedad: _variedad,
       cantidadKg: double.parse(_cantCtrl.text.replaceAll(',', '.')),
       causa: _causa,

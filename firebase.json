@@ -1,1 +1,7 @@
-{"flutter":{"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"cultivos-molina","configurations":{"android":"1:661568605437:android:c6bc2bab1182cd34f30294","ios":"1:661568605437:ios:6c9210909312eff7f30294"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"cultivos-molina","configurations":{"android":"1:661568605437:android:c6bc2bab1182cd34f30294","ios":"1:661568605437:ios:6c9210909312eff7f30294"}}}}}
+}

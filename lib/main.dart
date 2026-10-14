@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
@@ -13,6 +14,7 @@ import 'screens/dashboard/dashboard_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await initializeDateFormatting('es_CO');
   runApp(const CultivosMolinaApp());
 }
 
@@ -77,6 +79,9 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
+      // Durante el login el propio botón muestra la carga; así LoginScreen
+      // no se desmonta y puede mostrar el SnackBar de error
+      buildWhen: (prev, curr) => curr is! AuthLoading,
       builder: (context, state) {
         if (state is AuthLoading) {
           return const Scaffold(
