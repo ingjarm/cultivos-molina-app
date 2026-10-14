@@ -1,35 +1,35 @@
-# cultivos_molina
+# Cultivos Molina
 
 Aplicación móvil para la gestión y análisis de los datos para la toma de decisiones en la empresa cultivos molina.
 
-## Getting Started
+## Descripción 
 
 Sistema móvil desarrollado con Flutter y Firebase que permite digitalizar y centralizar la información de producción, pérdidas y ventas de las variedades de lechuga Batavia, Romana y Crespa, facilitando la toma de decisiones basada en datos.
 
-Módulos:
+# Módulos:
 
-Dashboard: resumen de indicadores clave del mes en curso.
+* Dashboard: resumen de indicadores clave del mes en curso.
 
-Producción: registro y seguimiento de cosechas por lote y variedad.
+* Producción: registro y seguimiento de cosechas por lote y variedad.
 
-Pérdidas: registro, clasificación por causa y análisis de márgenes.
+* Pérdidas: registro, clasificación por causa y análisis de márgenes.
 
-Ventas: registro de transacciones y seguimiento de ingresos.
+* Ventas: registro de transacciones y seguimiento de ingresos.
 
-Tecnologías:
+# Tecnologías:
 
-Flutter 3.x / Dart 3.x.
+* Flutter 3.x / Dart 3.x.
 
-Firebase Authentication.
+* Firebase Authentication.
 
-Cloud Firestore.
+* Cloud Firestore.
 
-Patrón de arquitectura BLoC.
+* Patrón de arquitectura BLoC.
 
-Requisitos:
+# Requisitos:
 
-Flutter SDK 3.19 o superior.
+* Flutter SDK 3.19 o superior.
 
-Cuenta de Firebase con proyecto configurado.
+* Cuenta de Firebase con proyecto configurado.
 
-Android 8.0 o superior / iOS 13 o superior.
+* Android 8.0 o superior / iOS 13 o superior.
